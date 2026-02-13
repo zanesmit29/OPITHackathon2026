@@ -1,18 +1,32 @@
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS, Chroma
+from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import chromadb
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+import io
 import os
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Dict
+import warnings
+import logging
+from contextlib import redirect_stderr
+
+# === CLEAN UP CONSOLE OUTPUT ===
+warnings.filterwarnings('ignore')
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+os.environ['TRANSFORMERS_VERBOSITY'] = 'error'
+os.environ['ANONYMIZED_TELEMETRY'] = 'False'
+
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('sentence_transformers').setLevel(logging.WARNING)
+
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 load_dotenv()
-#Load API keys
+#Load API keys if applicable - these should be set in your .env file
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 HUGGINGFACE_API_KEY = os.getenv("HF_TOKEN")
 
@@ -124,7 +138,7 @@ class RAGRetriever:
         self.vector_store_path = Path(os.getenv("VECTOR_STORE_PATH"))
         self.embedding_model = os.getenv("EMBEDDING_MODEL")
 
-        print(f"📂 Loading vector store from: {self.vector_store_path}")
+        logger.info(f"📁 Vector store path: {self.vector_store_path}")
 
         # Check if database exists (teammate should have created it)
         if not self.vector_store_path.exists():
@@ -133,47 +147,39 @@ class RAGRetriever:
             )
         
         # Load the embedding model
-        print(f"🤖 Loading embedding model: {self.embedding_model}")
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name=self.embedding_model,
-            model_kwargs={"device": "cpu"}
-        )
+        logger.info("⏳ Loading RAG system...")
 
         # Connect to the existing vector store
-        self.db = Chroma(
+        with redirect_stderr(io.StringIO()):  # Suppress Chroma warnings
+            self.embeddings = HuggingFaceEmbeddings(
+            model_name=self.embedding_model,
+            model_kwargs={"device": "cpu"}
+            )
+            self.db = Chroma(
             collection_name="langchain",
             embedding_function=self.embeddings,
             persist_directory=str(self.vector_store_path)
-        )
+            )
+
+
+        
 
         # Verify that it is loaded
         count = self.db._collection.count()
-        print(f"✓ Vector store loaded with {count} documents")
+        logger.info(f"✓ Vector store loaded with {count} documents\n")
 
         if count == 0:
-            print("⚠️ Warning: Vector store is empty.")
+            logger.warning("⚠️ Warning: Vector store is empty.")
 
 
-    def simple_match_retrieval(self, query: str, k: int = 5) -> List[str]:
-        """
-        Basic similarity search - your starting point.
-        
-        Args:
-            query: User's question
-            k: Number of documents to retrieve
-        
-        Returns:
-            List of document texts
-        """
-        docs = self.db.similarity_search(query, k=k)
 
-        # Extracting just the text content
-        results = [doc.page_content for doc in docs]
-        return results
     
-    def simple_match_retrieval_with_scores(self, query: str, k: int = 5) -> List[Tuple[str, float]]:
+    def safe_search(self, query: str, k: int = 5) -> List[Tuple[str, float]]:
         """
-        Similarity search that also returns relevance scores.
+        Safe search is designed to provide a quick and efficient way to retrieve relevant documents based on similarity scores. 
+        The results are then filtered to ensure that the most relevant documents are returned,
+        while also providing a score that indicates how closely each document matches the query.
+
         
         Args:
             query: User's question
@@ -182,46 +188,156 @@ class RAGRetriever:
         Returns:
             List of tuples (document text, score)
         """
-        print(f"🔍 Performing similarity search for query based on scores: '{query}' with k={k}")
+        logger.info(f"🔍 🏥 Safe search: '{query}' with k={k}\n")
         docs = self.db.similarity_search_with_score(query, k=k)
 
+        categorized_docs = []
+        for doc, score in docs:
+            if score <= 0.5:
+                confidence = "Highly Confident"
+                categorized_docs.append((doc.page_content, score, confidence))
+            elif score <= 0.7:
+                confidence = "Moderately Confident"
+                categorized_docs.append((doc.page_content, score, confidence))
+            else:
+                confidence = "Low Confidence"
+                categorized_docs.append((doc.page_content, score, confidence))
+
+        if len(categorized_docs) == 0:
+            logger.warning("⚠️ No high-confidence matches - recommend human expert review.")
         
-        
-        return [(doc.page_content, score) for doc, score in docs]
+        return categorized_docs
 
     def advanced_mmr_retrieval(self, query: str, k: int = 10, lambda_mult: float = 0.8) -> List[str]:
         """
+        Secondary method: Diverse perspectives without individual relevance scores.
         MMR-based retrieval that balances relevance and diversity. This is a more complex retrieval method that can help surface a wider range of relevant documents.
 
         Args:
             query: User's question
             k: Number of documents to retrieve before re-ranking
             lambda_mult: Parameter to balance relevance vs diversity (0 = all relevance, 1 = all diversity)
-        """
-        print(f"🔍 Performing MMR retrieval for query: '{query}' with k={k} and lambda={lambda_mult}")
 
+        Returns:
+            List of diverse document texts without individual scores
+        """
+        logger.info(f"🔍 Performing MMR retrieval for query: '{query}' with k={k} and lambda={lambda_mult}\n")
+
+        # Get diverse set of documents using MMR
         results = self.db.max_marginal_relevance_search(
             query, 
             k=k,
             fetch_k=k*2,  # Fetch more documents to allow for re-ranking
             lambda_mult=lambda_mult
         )
-        # Here you could add additional processing to re-rank or filter results
-        return [doc.page_content for doc in results]  # Return top 5 after advanced processing
+        
+        
+        logger.info(f"✓ MMR retrieved {len(results)} documents before re-ranking")
+
+        
+        return [doc.page_content for doc in results]  
+    
+    def smart_search(self, query: str, k: int = 5) -> Dict:
+        """
+        Intelligent search chooses the best retrieval method based on query complexity and confidence levels.
+
+        Strategy:
+        1. Perform initial safe search retrieval.
+        2. Analyze confidence levels of retrieved documents.
+        3. If confidence is high, return safe search results.
+        4. If confidence is low, recommend human expert review.
+        5. If confidence is medium, perform MMR retrieval for a more comprehensive set of documents.
+        6. Return results
+        """
+        logger.info(f"🧠 Smart search: '{query[:50]}...'")
+
+        safe_results = self.safe_search(query, k=k)
+
+        # Evaluate confidence levels
+        high_cof_counts = sum(1 for _, _, conf in safe_results if conf == "Highly Confident")
+        low_cof_counts = sum(1 for _, _, conf in safe_results if conf == "Low Confidence")
+
+        if high_cof_counts >= k // 2:
+            # If most results are high confidence, return them directly for quick response
+            logger.info(f"✓ High confidence in safe search results - returning those.")
+            return {
+                "method": "safe_search",
+                "confidence": "high",
+                "results": [
+                    {
+                        "content": content,
+                        "score": score,
+                        "confidence": conf
+                    }
+                    for content, score, conf in safe_results
+                ],
+                "recommendation": "SAFE_TO_ANSWER"
+                }
+        elif low_cof_counts >= k // 2:
+            # If most results are low confidence, recommend human review instead of returning potentially unreliable information
+            logger.warning(f"⚠️ Low confidence in safe search results - consult medical expert for review.")
+            return {
+                "method": "safe_search",
+                "confidence": "low",
+                "results": [
+                    {
+                        "content": content,
+                        "score": score,
+                        "confidence": conf
+                    }
+                    for content, score, conf in safe_results
+                ],
+                "recommendation": "REVIEW_BEFORE_ANSWERING"
+            }
+        else:
+            # For medium confidence, perform a more comprehensive MMR retrieval to surface a wider range of relevant documents that may provide better context for answering the query
+            logger.info("⚠️ Low confidence in safe search results - switching to MMR retrieval for comprehensive results.")
+            diverse_results = self.advanced_mmr_retrieval(query, k=k*2, lambda_mult=0.5) # Adjust lambda for more diversity in this fallback scenario
+            return {
+                "method": "comprehensive_search",
+                "confidence": "medium",
+                "results": [
+                    {
+                        "content": content,
+                        "score": None,  # MMR doesn't provide individual scores
+                        "confidence": "medium"
+                    }
+                    for content in diverse_results
+                ],
+                "recommendation": "REVIEW_BEFORE_ANSWERING"
+            }
 
 if __name__ == "__main__":
     
     # Only run simulated vector store once to create the database, then comment it out for normal retrieval testing
     #db = simulate_vector_store_setup()
+    print("="*70)
+    print("🚀 Testing RAG Retrieval System")
+    print("="*70)
 
-
-    # Step 3: Test retrieval
-    user_input = "What are the symptoms of Alzheimer's disease?"
     retriever = RAGRetriever()
 
-    docs = retriever.advanced_mmr_retrieval(user_input, k=5, lambda_mult=0.8)
+    user_input = "How to bake a cake?"
 
-    print("🔍 Retrieved documents:")
-    for doc in docs:
-        print(f"Content: {doc[:80]}...")
-    
+    #Test safe search retrieval
+    docs = retriever.safe_search(user_input, k=5)
+
+    # Test comprehensive retrieval
+    #docs = retriever.advanced_mmr_retrieval(user_input, k=5, lambda_mult=0.8)
+
+    print("="*70)
+    print("Results")
+    print("="*70)
+
+    # logger.info("🔍 Safe Search Results:")
+    # for i, (doc, score, confidence) in enumerate(docs):
+    #     logger.info(f"Document {i+1}: {doc[:80]}... (Score: {score}, Confidence: {confidence})")
+
+    # logger.info("\nComprehensive MMR Results:")
+    # mmr_docs = retriever.advanced_mmr_retrieval(user_input, k=5, lambda_mult=0.8)
+    # for i, doc in enumerate(mmr_docs):
+    #     logger.info(f"Document {i+1}: {doc[:80]}...")
+
+    smart_results = retriever.smart_search(user_input, k=5)
+    for i, res in enumerate(smart_results["results"]):
+        logger.info(f"Document {i+1}: {res['content'][:80]}... (Confidence: {res['confidence']})")
