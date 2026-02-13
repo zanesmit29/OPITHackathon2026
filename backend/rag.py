@@ -127,7 +127,13 @@ def simulate_vector_store_setup():
 
 
 class RAGRetriever:
-    """Handle retrieval of relevant documents from the vector store based on user queries."""
+    """
+    Handle retrieval of relevant documents from the vector store based on user queries.
+    The RAGRetriever class has 3 main methods:
+    1. safe_search: Provides a quick retrieval of relevant documents with confidence categorization based on similarity scores.
+    2. advanced_mmr_retrieval: Uses Maximal Marginal Relevance (MMR) to retrieve a more diverse set of relevant documents without individual confidence scores.
+    3. smart_search: An intelligent search method that chooses between safe_search and advanced_mmr_retrieval based on the confidence levels of the initial safe search results, providing recommendations for whether it's safe to answer or if human review is needed.
+    """
 
     def __init__(self):
         """
@@ -193,10 +199,10 @@ class RAGRetriever:
 
         categorized_docs = []
         for doc, score in docs:
-            if score <= 0.5:
+            if score <= 0.6:
                 confidence = "Highly Confident"
                 categorized_docs.append((doc.page_content, score, confidence))
-            elif score <= 0.7:
+            elif score <= 0.8:
                 confidence = "Moderately Confident"
                 categorized_docs.append((doc.page_content, score, confidence))
             else:
@@ -287,11 +293,11 @@ class RAGRetriever:
                     }
                     for content, score, conf in safe_results
                 ],
-                "recommendation": "REVIEW_BEFORE_ANSWERING"
+                "recommendation": "DO_NOT_ANSWER"
             }
         else:
             # For medium confidence, perform a more comprehensive MMR retrieval to surface a wider range of relevant documents that may provide better context for answering the query
-            logger.info("⚠️ Low confidence in safe search results - switching to MMR retrieval for comprehensive results.")
+            logger.info("⚠️ Medium confidence in safe search results - switching to MMR retrieval for comprehensive results.")
             diverse_results = self.advanced_mmr_retrieval(query, k=k*2, lambda_mult=0.5) # Adjust lambda for more diversity in this fallback scenario
             return {
                 "method": "comprehensive_search",
@@ -317,7 +323,7 @@ if __name__ == "__main__":
 
     retriever = RAGRetriever()
 
-    user_input = "How to bake a cake?"
+    user_input = "What are the symptoms of Alzheimer's disease?"
 
     #Test safe search retrieval
     docs = retriever.safe_search(user_input, k=5)
@@ -329,9 +335,9 @@ if __name__ == "__main__":
     print("Results")
     print("="*70)
 
-    # logger.info("🔍 Safe Search Results:")
-    # for i, (doc, score, confidence) in enumerate(docs):
-    #     logger.info(f"Document {i+1}: {doc[:80]}... (Score: {score}, Confidence: {confidence})")
+    logger.info("🔍 Safe Search Results:")
+    for i, (doc, score, confidence) in enumerate(docs):
+        logger.info(f"Document {i+1}: {doc[:80]}... (Score: {score}, Confidence: {confidence})")
 
     # logger.info("\nComprehensive MMR Results:")
     # mmr_docs = retriever.advanced_mmr_retrieval(user_input, k=5, lambda_mult=0.8)
