@@ -4,6 +4,19 @@ from huggingface_hub import InferenceClient
 from dotenv import load_dotenv
 import os
 
+from prompts import(
+    BASE_SYSTEM_PROMPT,
+    FULL_SYSTEM_PROMPT,
+    SAFETY_RULES_INJECTION,
+    CRISIS_RESPONSE_TEMPLATE,
+    CRISIS_KEYWORDS,
+    DANGEROUS_ADVICE_BLOCKLIST,
+    LOW_CONFIDENCE_TEMPLATE,
+    is_crisis_message,
+    is_dangerous_topic,
+    PERSONALIZATION_TEMPLATE
+)
+
 load_dotenv()  # Load environment variables from .env file
 HF_TOKEN = os.getenv("HF_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -25,12 +38,12 @@ def simple_groq_agent(query: str) -> str:
     print(f"{'='*70}\n")
     
     # Method 1: Directly call the search function (bypassing the Tool wrapper)
-    print("🔍 First search the knowledge base directly using the search function...\n")
+    print("🔍 Searching knowledge base...\n")
     raw_info = search_tool.run(query)
     print("✓ Search complete\n")
     
     # Step 2: Create Groq client
-    print("🤖 Step 2: Formatting response with Groq...")
+    print("🤖 Formatting response with Groq...\n")
     client = Groq(api_key=GROQ_API_KEY)
 
     # Step 3: Create simple prompt
@@ -76,16 +89,16 @@ def simple_hf_agent(query: str) -> str:
     print(f"{'='*70}\n")
     
     # Step 1: Search knowledge base
-    print("🔍 Step 1: Searching knowledge base...")
+    print("🔍 Searching knowledge base...\n")
     raw_info = search_tool.run(query)
     print("✓ Search complete\n")
     
     # Step 2: Create HuggingFace client
-    print("🤖 Step 2: Formatting response with HuggingFace...")
+    print("🤖 Formatting response with HuggingFace...\n")
     client = InferenceClient(model="meta-llama/Meta-Llama-3-8B-Instruct", token=HF_TOKEN)
 
     # Step 3: Create simple prompt
-    system_message = "You are a compassionate Alzheimer's caregiver assistant."
+    system_message = BASE_SYSTEM_PROMPT + SAFETY_RULES_INJECTION
     user_message = f"""User asked: "{query}"
     Here's what I found in the knowledge base:
     {raw_info}
@@ -103,19 +116,58 @@ def simple_hf_agent(query: str) -> str:
 
     return response.choices[0].message.content or ""
 
+def basic_check_query_safety(query: str) -> str:
+    """Check if the query contains any crisis keywords."""
+    if is_crisis_message(query):
+        print("⚠️ Crisis keywords detected in query. Triggering crisis protocol.\n")
+        return "CRISIS"
+    elif is_dangerous_topic(query):
+        print("⚠️ Dangerous topic detected in query. Triggering safety protocol.\n")
+        return "DANGEROUS"
+    else:
+        return "SAFE"
+
+def agentic_query_check(query:str, CRISIS_KEYWORDS:list, CRISIS_RESPONSE_TEMPLATE:str) -> str:
+    """Check query for safety and possible crisis before processing."""
+
+    client = InferenceClient(model="meta-llama/Meta-Llama-3-8B-Instruct", token=HF_TOKEN)
+    system_message = """
+    You are an assistant designed to check user queries for safety and potential crisis situations.
+    Check if the user input contains any signs of crisis like {CRISIS_KEYWORDS}.
+    if you detect any crisis keywords use {CRISIS_RESPONSE_TEMPLATE} as your response."""
+
+    user_message = f"User query: {query}"
+
+    response = client.chat_completion(
+        messages = [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message}
+        ],
+        max_tokens=200,
+        temperature=TEMPERATURE
+    )
+
+    return response.choices[0].message.content or ""
+
+    
+
 if __name__ == "__main__":
     # Example query for testing
     print("="*70)
     print("Agent Test: Simple Agent with Search Tool")
     print("="*70 + "\n")
 
-    query = "What are the symptoms of Alzheimer's disease?"
+    query = "I am feeling overwhelmed and don't know what to do."
+    print("Testing for crisis keywords in query...\n")
+
+    safety_status = agentic_query_check(query, CRISIS_KEYWORDS, CRISIS_RESPONSE_TEMPLATE)
+
     
     #response = simple_groq_agent(query)
-    response = simple_hf_agent(query)
+    #response = simple_hf_agent(query)
     # Display
     print("="*70)
     print("🤖 AGENT RESPONSE")
     print("="*70)
-    print(response)
+    print(safety_status)
     print("\n" + "="*70)

@@ -136,7 +136,7 @@ def check_backend_availability() -> bool:
     
     try:
         # Try to import the agent module
-        from agent import simple_groq_agent, simple_hf_agent
+        from backend.agent import simple_groq_agent, simple_hf_agent
         st.session_state.backend_available = True
         return True
     except Exception as e:
@@ -188,7 +188,7 @@ def get_agent_response(query: str, patient_context: Optional[Dict] = None) -> st
     """Get response from backend agent."""
     try:
         # Import agent functions
-        from agent import simple_groq_agent, simple_hf_agent
+        from backend.agent import simple_groq_agent, simple_hf_agent
         
         # Augment query with patient context if available
         if patient_context and any(patient_context.values()):
