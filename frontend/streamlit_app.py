@@ -103,10 +103,11 @@ def initialize_session_state() -> None:
     if 'patient_data' not in st.session_state:
         st.session_state.patient_data = {
             'name': '',
+            'gender': '',
             'age_years': None,
             'weight_kg': None,
             'height_cm': None,
-            'diagnosis_timeframe': ''
+            'diagnosis_months': 0
         }
     
     if 'is_authenticated' not in st.session_state:
@@ -167,7 +168,18 @@ def get_demo_response(query: str, patient_context: Optional[Dict] = None) -> str
     
     # Add patient context if available
     if patient_context and patient_context.get('name'):
-        response = f"For {patient_context['name']}, " + response.lower()
+        context_parts = []
+        if patient_context.get('name'):
+            context_parts.append(patient_context['name'])
+        if patient_context.get('gender'):
+            gender_short = "male" if "male" in patient_context['gender'].lower() else "female"
+            context_parts.append(f"a {patient_context.get('age_years', 'patient')} year old {gender_short}" if patient_context.get('age_years') else gender_short)
+        
+        if context_parts:
+            if len(context_parts) > 1:
+                response = f"For {context_parts[0]}, {context_parts[1]}, " + response.lower()
+            else:
+                response = f"For {context_parts[0]}, " + response.lower()
     
     return response
 
@@ -183,10 +195,21 @@ def get_agent_response(query: str, patient_context: Optional[Dict] = None) -> st
             context_str = "Patient context: "
             if patient_context.get('name'):
                 context_str += f"Name: {patient_context['name']}, "
+            if patient_context.get('gender'):
+                context_str += f"Sex: {patient_context['gender']}, "
             if patient_context.get('age_years'):
                 context_str += f"Age: {patient_context['age_years']} years, "
-            if patient_context.get('diagnosis_timeframe'):
-                context_str += f"Diagnosis: {patient_context['diagnosis_timeframe']}, "
+            if patient_context.get('diagnosis_months'):
+                months = patient_context['diagnosis_months']
+                years = months // 12
+                remaining_months = months % 12
+                if years > 0 and remaining_months > 0:
+                    diagnosis_text = f"{years} years {remaining_months} months"
+                elif years > 0:
+                    diagnosis_text = f"{years} years"
+                else:
+                    diagnosis_text = f"{remaining_months} months"
+                context_str += f"Time since diagnosis: {diagnosis_text}, "
             
             augmented_query = f"{context_str}\n\nQuestion: {query}"
         else:
@@ -227,6 +250,14 @@ def render_patient_form() -> None:
     with st.form("patient_form"):
         name = st.text_input("Patient Name", placeholder="e.g., John Doe")
         
+        # Biological sex dropdown
+        gender = st.selectbox(
+            "Biological Sex",
+            options=["", "Biological male", "Biological female"],
+            index=0,
+            help="Select biological sex for personalized medical information"
+        )
+        
         col1, col2 = st.columns(2)
         with col1:
             age = st.number_input("Age (years)", min_value=0, max_value=120, value=None, step=1)
@@ -234,7 +265,27 @@ def render_patient_form() -> None:
         
         with col2:
             height = st.number_input("Height (cm)", min_value=0.0, max_value=250.0, value=None, step=0.1)
-            diagnosis = st.text_input("Time Since Diagnosis", placeholder="e.g., 2 years")
+            # Diagnosis slider (0-30 years in 3-month steps = 0-360 months in steps of 3)
+            diagnosis_months = st.slider(
+                "Time Since Diagnosis",
+                min_value=0,
+                max_value=360,
+                value=0,
+                step=3,
+                help="Slide to select time since Alzheimer's diagnosis (in 3-month increments)"
+            )
+            # Display formatted value
+            years = diagnosis_months // 12
+            months = diagnosis_months % 12
+            if years > 0 and months > 0:
+                diagnosis_display = f"{years} years {months} months"
+            elif years > 0:
+                diagnosis_display = f"{years} years"
+            elif months > 0:
+                diagnosis_display = f"{months} months"
+            else:
+                diagnosis_display = "Not diagnosed yet"
+            st.caption(f"Selected: {diagnosis_display}")
         
         submitted = st.form_submit_button("Start Chat", use_container_width=True, type="primary")
         
@@ -242,14 +293,15 @@ def render_patient_form() -> None:
             # Store patient data in session state
             st.session_state.patient_data = {
                 'name': name,
+                'gender': gender,
                 'age_years': age,
                 'weight_kg': weight,
                 'height_cm': height,
-                'diagnosis_timeframe': diagnosis
+                'diagnosis_months': diagnosis_months
             }
             
             # Mark as authenticated if any patient info provided
-            if any([name, age, weight, height, diagnosis]):
+            if any([name, gender, age, weight, height, diagnosis_months]):
                 st.session_state.is_authenticated = True
             
             st.session_state.show_patient_form = False
@@ -293,14 +345,25 @@ def render_sidebar() -> None:
             patient = st.session_state.patient_data
             if patient.get('name'):
                 st.write(f"**Name:** {patient['name']}")
+            if patient.get('gender'):
+                st.write(f"**Sex:** {patient['gender']}")
             if patient.get('age_years'):
                 st.write(f"**Age:** {patient['age_years']} years")
             if patient.get('weight_kg'):
                 st.write(f"**Weight:** {patient['weight_kg']} kg")
             if patient.get('height_cm'):
                 st.write(f"**Height:** {patient['height_cm']} cm")
-            if patient.get('diagnosis_timeframe'):
-                st.write(f"**Diagnosis:** {patient['diagnosis_timeframe']}")
+            if patient.get('diagnosis_months') is not None and patient.get('diagnosis_months') > 0:
+                months = patient['diagnosis_months']
+                years = months // 12
+                remaining_months = months % 12
+                if years > 0 and remaining_months > 0:
+                    diagnosis_text = f"{years} years {remaining_months} months"
+                elif years > 0:
+                    diagnosis_text = f"{years} years"
+                else:
+                    diagnosis_text = f"{remaining_months} months"
+                st.write(f"**Diagnosis:** {diagnosis_text}")
             
             st.markdown('</div>', unsafe_allow_html=True)
             st.markdown("---")
@@ -329,10 +392,11 @@ def render_sidebar() -> None:
                 st.session_state.is_authenticated = False
                 st.session_state.patient_data = {
                     'name': '',
+                    'gender': '',
                     'age_years': None,
                     'weight_kg': None,
                     'height_cm': None,
-                    'diagnosis_timeframe': ''
+                    'diagnosis_months': 0
                 }
                 st.session_state.chat_history = []
                 st.session_state.query_count = 0
