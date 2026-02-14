@@ -48,6 +48,7 @@ def search_function(query: str) -> str:
         output += "- Provide Alzheimer's Association Helpline: 1-800-272-3900 (24/7)\n"
         output += "- DO NOT provide medical advice based on this information\n"
         output += "="*60 + "\n\n"
+        return output
 
     for idx, doc in enumerate(documents, 1):
         doc_content = doc['content'][:200]  # Show only the first 200 characters for brevity
@@ -89,11 +90,11 @@ if __name__ == "__main__":
     # Method 1: Call function directly
     print("--- Test 1: Relevant Query ---")
     result1 = search_tool.run(query)
-    print(result1[:300] + "...\n")
+    print(result1[:] + "...\n")
     
     query2 = "What is the capital of France?"  # This is an out-of-scope query for the Alzheimer's knowledge base
     # Method 2: Use the Tool
     print("--- Test 2: Out of scope testing for warning ---")
     result2 = search_tool.run(query2)
-    print(result2[:300] + "...\n")
+    print(result2[:] + "...\n")
 

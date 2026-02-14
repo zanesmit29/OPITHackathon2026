@@ -255,7 +255,7 @@ class RAGRetriever:
         5. If confidence is medium, perform MMR retrieval for a more comprehensive set of documents.
         6. Return results
         """
-        logger.info(f"🧠 Smart search: '{query[:50]}...'")
+        logger.info(f"🧠 Smart search: '{query[:50]}...'\n")
 
         safe_results = self.safe_search(query, k=k)
 
@@ -265,7 +265,7 @@ class RAGRetriever:
 
         if high_cof_counts >= k // 2:
             # If most results are high confidence, return them directly for quick response
-            logger.info(f"✓ High confidence in safe search results - returning those.")
+            logger.info(f"✓ High confidence in safe search results - returning those.\n")
             return {
                 "method": "safe_search",
                 "confidence": "high",
@@ -281,7 +281,7 @@ class RAGRetriever:
                 }
         elif low_cof_counts >= k // 2:
             # If most results are low confidence, recommend human review instead of returning potentially unreliable information
-            logger.warning(f"⚠️ Low confidence in safe search results - consult medical expert for review.")
+            logger.warning(f"⚠️ Low confidence in safe search results - consult medical expert for review.\n")
             return {
                 "method": "safe_search",
                 "confidence": "low",
@@ -297,7 +297,7 @@ class RAGRetriever:
             }
         else:
             # For medium confidence, perform a more comprehensive MMR retrieval to surface a wider range of relevant documents that may provide better context for answering the query
-            logger.info("⚠️ Medium confidence in safe search results - switching to MMR retrieval for comprehensive results.")
+            logger.info("⚠️ Medium confidence in safe search results - switching to MMR retrieval for comprehensive results.\n")
             diverse_results = self.advanced_mmr_retrieval(query, k=k*2, lambda_mult=0.5) # Adjust lambda for more diversity in this fallback scenario
             return {
                 "method": "comprehensive_search",
@@ -335,9 +335,9 @@ if __name__ == "__main__":
     print("Results")
     print("="*70)
 
-    logger.info("🔍 Safe Search Results:")
-    for i, (doc, score, confidence) in enumerate(docs):
-        logger.info(f"Document {i+1}: {doc[:80]}... (Score: {score}, Confidence: {confidence})")
+    # logger.info("🔍 Safe Search Results:")
+    # for i, (doc, score, confidence) in enumerate(docs):
+    #     logger.info(f"Document {i+1}: {doc[:80]}... (Score: {score}, Confidence: {confidence})")
 
     # logger.info("\nComprehensive MMR Results:")
     # mmr_docs = retriever.advanced_mmr_retrieval(user_input, k=5, lambda_mult=0.8)

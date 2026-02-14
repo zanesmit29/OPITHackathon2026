@@ -65,15 +65,30 @@ CRISIS_KEYWORDS = [
     "harm", "abuse", "attacked", "threatening",
     "overwhelmed", "desperate", "hopeless", "helpless",
     "violent thoughts", "violent feelings", "self-harm",
-    "homicidal", "violent urges", "violent impulses"
+    "homicidal", "violent urges", "violent impulses",
+    "hurt others", "hurt people", "hurting others", "hurting people",
+    "hurt myself", "hurting myself", "suicidal thoughts", "suicidal feelings",
+    "suicidal urges", "suicidal impulses", "want to die"
 ]
 
 DANGEROUS_ADVICE_BLOCKLIST = [
     "specific medication doses",
     "stopping prescribed medication",
     "physical restraint techniques",
-    "sedation at home"
+    "sedation at home",
+    "medication dosage", "medication dosages", "medication dose", "medication doses",
+    "stop medication", "stopping medication", "change medication", "changing medication",
+    "restrain", "restraining", "restraint techniques", "physical restraint",
+    "sedation", "sedating", "sedation techniques", "sedate"
 ]
+
+# Generate a Dangerous message template
+DANGEROUS_MESSAGE_TEMPLATE = """
+I want to provide you with safe and helpful information, but I cannot assist with this specific question.
+This topic is outside the scope of safe caregiving advice. I recommend:
+- Speaking directly with your doctor or care team for guidance on this issue
+- Visiting WEBSITE for more resources
+- Calling the Alzheimer helpline: 900 200 120"""
 
 # Build a readable version to inject into the prompt
 _blocklist_text = "\n".join(f"- {item}" for item in DANGEROUS_ADVICE_BLOCKLIST)
