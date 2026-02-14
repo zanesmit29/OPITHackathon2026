@@ -127,27 +127,6 @@ def basic_check_query_safety(query: str) -> str:
     else:
         return "SAFE"
 
-def agentic_query_check(query:str, CRISIS_KEYWORDS:list, CRISIS_RESPONSE_TEMPLATE:str) -> str:
-    """Check query for safety and possible crisis before processing."""
-
-    client = InferenceClient(model="meta-llama/Meta-Llama-3-8B-Instruct", token=HF_TOKEN)
-    system_message = """
-    You are an assistant designed to check user queries for safety and potential crisis situations.
-    Check if the user input contains any signs of crisis like {CRISIS_KEYWORDS}.
-    if you detect any crisis keywords use {CRISIS_RESPONSE_TEMPLATE} as your response."""
-
-    user_message = f"User query: {query}"
-
-    response = client.chat_completion(
-        messages = [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": user_message}
-        ],
-        max_tokens=200,
-        temperature=TEMPERATURE
-    )
-
-    return response.choices[0].message.content or ""
 
     
 
@@ -160,8 +139,7 @@ if __name__ == "__main__":
     query = "I am feeling overwhelmed and don't know what to do."
     print("Testing for crisis keywords in query...\n")
 
-    safety_status = agentic_query_check(query, CRISIS_KEYWORDS, CRISIS_RESPONSE_TEMPLATE)
-
+    safety_status = basic_check_query_safety(query)
     
     #response = simple_groq_agent(query)
     #response = simple_hf_agent(query)
@@ -169,5 +147,5 @@ if __name__ == "__main__":
     print("="*70)
     print("🤖 AGENT RESPONSE")
     print("="*70)
-    print(safety_status)
+    #print(safety_status)
     print("\n" + "="*70)
