@@ -62,7 +62,10 @@ CRISIS_KEYWORDS = [
     "hurting me", "violent", "danger", "emergency",
     "can't take it anymore", "cant take it anymore",
     "want to give up", "no way out", "end it",
-    "harm", "abuse", "attacked", "threatening"
+    "harm", "abuse", "attacked", "threatening",
+    "overwhelmed", "desperate", "hopeless", "helpless",
+    "violent thoughts", "violent feelings", "self-harm",
+    "homicidal", "violent urges", "violent impulses"
 ]
 
 DANGEROUS_ADVICE_BLOCKLIST = [
