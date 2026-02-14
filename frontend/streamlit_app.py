@@ -22,6 +22,7 @@ Expected Behavior:
 import sys
 import os
 import time
+import logging
 from typing import Dict, Optional, List
 from datetime import datetime
 
@@ -29,6 +30,13 @@ from datetime import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), '../backend'))
 
 import streamlit as st
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Configure page
 st.set_page_config(
@@ -187,14 +195,14 @@ def get_agent_response(query: str, patient_context: Optional[Dict] = None) -> st
         # Call the agent (try Groq first, fallback to HF)
         try:
             response = simple_groq_agent(augmented_query)
-        except:
+        except Exception:
             response = simple_hf_agent(augmented_query)
         
         return response
     
     except Exception as e:
         # Log error and provide user-friendly message
-        print(f"Error calling backend agent: {str(e)}")
+        logger.error(f"Error calling backend agent: {str(e)}")
         raise Exception(f"Backend agent error: {str(e)}")
 
 
