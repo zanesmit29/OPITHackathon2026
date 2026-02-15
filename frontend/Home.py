@@ -155,10 +155,17 @@ def check_backend_availability() -> bool:
         # Try to import the agent module
         from backend.agent import ConversationAgent
         st.session_state.backend_available = True
+        logger.info("✓ Backend agent imported successfully")
         return True
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         logger.error(f"Backend is not available: {str(e)}")
+        logger.error(f"Full traceback:\n{error_details}")
         st.session_state.backend_available = False
+        
+        # TEMPORARY: Show error in UI for debugging
+        st.error(f"**Debug Info:**\n```\n{error_details}\n```")
         return False
 
 
