@@ -234,8 +234,8 @@ This project is part of the OPITHackathon2026.
 ## 👥 Team
 
 Created by the OPITHackathon2026 team for supporting Alzheimer's disease caregivers.
-@danielinkudos - https://www.linkedin.com/in/daniel-p%C3%A9rez-vidal-energ%C3%ADa/
-@stefanostelluti - https://www.linkedin.com/in/stefanostelluti/
+danielinkudos - https://www.linkedin.com/in/daniel-p%C3%A9rez-vidal-energ%C3%ADa/
+stefanostelluti - https://www.linkedin.com/in/stefanostelluti/
 
 
 ## 📚 Additional Resources
