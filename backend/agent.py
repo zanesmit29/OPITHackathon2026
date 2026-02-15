@@ -1,5 +1,5 @@
 from agent_tools import search_tool
-from groq import Groq
+#from groq import Groq
 from huggingface_hub import InferenceClient
 from dotenv import load_dotenv
 import os
@@ -40,7 +40,7 @@ def get_secret(key: str, default: str = None) -> str:
 
 # Load secrets with fallback
 HF_TOKEN = get_secret("HF_TOKEN")
-GROQ_API_KEY = get_secret("GROQ_API_KEY")
+#GROQ_API_KEY = get_secret("GROQ_API_KEY")
 LLM_MODEL = get_secret("LLM_MODEL", "gpt-4o-mini")  # Default to gpt-4o-mini if not set
 TEMPERATURE = float(get_secret("TEMPERATURE", "0.7"))  # Default to 0.7 if not set
 
