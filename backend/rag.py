@@ -26,13 +26,36 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
 
 load_dotenv()
+# === SECRETS HELPER FUNCTION for Streamlit ===
+def get_secret(key: str, default: str = None) -> str:
+    """
+    Get secret from Streamlit secrets (production) or environment variables (local).
+    
+    Args:
+        key: Secret key name
+        default: Default value if key not found
+    
+    Returns:
+        Secret value or default
+    """
+    try:
+        import streamlit as st
+        # Try Streamlit secrets first (Cloud deployment)
+        if hasattr(st, 'secrets') and key in st.secrets:
+            return st.secrets[key]
+    except (ImportError, FileNotFoundError):
+        # Streamlit not available or secrets not configured
+        pass
+    
+    # Fall back to environment variables (local development)
+    return os.getenv(key, default)
 
-# Load environment variables
+# Load environment variables with fallback to Streamlit secrets
 project_root = Path(__file__).parent.parent  # Go up one level from backend/ to OPITHackathon2026/
-faiss_index_path = project_root / os.getenv("FAISS_INDEX_PATH", "backend/data/alzheimer_faiss_deepl_hybrid.index")
-faiss_metadata_path = project_root / os.getenv("FAISS_METADATA_PATH", "backend/data/alzheimer_metadata_deepl_hybrid.json")
-llm_model = os.getenv("LLM_MODEL")
-temperature = float(os.getenv("TEMPERATURE", "0.7"))
+faiss_index_path = project_root / get_secret("FAISS_INDEX_PATH", "backend/data/alzheimer_faiss_deepl_hybrid.index")
+faiss_metadata_path = project_root / get_secret("FAISS_METADATA_PATH", "backend/data/alzheimer_metadata_deepl_hybrid.json")
+llm_model = get_secret("LLM_MODEL")
+temperature = float(get_secret("TEMPERATURE", "0.7"))
 
 
 class RAGRetriever:

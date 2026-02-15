@@ -6,23 +6,43 @@ import os
 
 from prompts import(
     BASE_SYSTEM_PROMPT,
-    FULL_SYSTEM_PROMPT,
     SAFETY_RULES_INJECTION,
     CRISIS_RESPONSE_TEMPLATE,
     DANGEROUS_MESSAGE_TEMPLATE,
-    CRISIS_KEYWORDS,
-    DANGEROUS_ADVICE_BLOCKLIST,
-    LOW_CONFIDENCE_TEMPLATE,
     is_crisis_message,
-    is_dangerous_topic,
-    PERSONALIZATION_TEMPLATE
+    is_dangerous_topic
 )
 
 load_dotenv()  # Load environment variables from .env file
-HF_TOKEN = os.getenv("HF_TOKEN")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")  # Default to gpt-4o if not set
-TEMPERATURE = float(os.getenv("TEMPERATURE", 0.7))  # Default to 0.7 if not set
+# === SECRETS HELPER FUNCTION ===
+def get_secret(key: str, default: str = None) -> str:
+    """
+    Get secret from Streamlit secrets (production) or environment variables (local).
+    
+    Args:
+        key: Secret key name
+        default: Default value if key not found
+    
+    Returns:
+        Secret value or default
+    """
+    try:
+        import streamlit as st
+        # Try Streamlit secrets first (Cloud deployment)
+        if hasattr(st, 'secrets') and key in st.secrets:
+            return st.secrets[key]
+    except (ImportError, FileNotFoundError):
+        # Streamlit not available or secrets not configured
+        pass
+    
+    # Fall back to environment variables (local development)
+    return os.getenv(key, default)
+
+# Load secrets with fallback
+HF_TOKEN = get_secret("HF_TOKEN")
+GROQ_API_KEY = get_secret("GROQ_API_KEY")
+LLM_MODEL = get_secret("LLM_MODEL", "gpt-4o-mini")  # Default to gpt-4o-mini if not set
+TEMPERATURE = float(get_secret("TEMPERATURE", "0.7"))  # Default to 0.7 if not set
 
 class ConversationAgent:
     """A conversation agent that can use tools to generate responses to user queries and have long-term memory of the conversation history."""
@@ -81,6 +101,10 @@ class ConversationAgent:
     #     print("✓ Groq response generated\n")
 
     #     return response.choices[0].message.content or ""
+    def clear_history(self) -> None:
+        """Clear the conversation history."""
+        self.conversation_history = []
+        print("✓ Conversation history cleared\n")
 
     def chat_agent(self, query: str) -> str:
         """
