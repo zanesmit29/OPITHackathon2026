@@ -42,7 +42,6 @@ OPITHackathon2026/
 │   ├── agent_tools.py            # Search tools for RAG
 │   ├── rag.py                    # FAISS retriever with hybrid search
 │   ├── prompts.py                # System prompts and safety rules
-│   ├── safety.py                 # Two-layer safety system
 │   ├── ingest.py                 # Vector store ingestion
 │   ├── data/                     # FAISS index and metadata
 │   │   ├── alzheimer_faiss_deepl_hybrid.index
@@ -111,11 +110,6 @@ OPITHackathon2026/
    LLM_MODEL=gpt-4o-mini
    TEMPERATURE=0.7
    
-   # Vector Store Configuration
-   VECTOR_STORE_PATH=backend/vector_store
-   CHUNK_SIZE=150
-   CHUNK_OVERLAP=30
-   
    # FAISS Paths
    FAISS_INDEX_PATH=backend/data/alzheimer_faiss_deepl_hybrid.index
    FAISS_METADATA_PATH=backend/data/alzheimer_metadata_deepl_hybrid.json
@@ -168,7 +162,6 @@ OPITHackathon2026/
 - **FAISS**: Vector similarity search
 - **Sentence Transformers**: Text embeddings (`all-MiniLM-L6-v2`)
 - **HuggingFace Inference API**: LLM integration
-- **CrewAI**: Multi-agent framework
 
 ### Web Framework
 - **Streamlit**: Interactive web interface
@@ -242,6 +235,7 @@ This project is part of the OPITHackathon2026.
 
 Created by the OPITHackathon2026 team for supporting Alzheimer's disease caregivers.
 
+
 ## 📚 Additional Resources
 
 - [Frontend Documentation](frontend/README.md) - Detailed Streamlit app documentation
@@ -275,4 +269,4 @@ If FAISS index is missing or corrupted:
 ## 🔗 Links
 
 - Repository: https://github.com/zanesmit29/OPITHackathon2026
-- Issues: https://github.com/zanesmit29/OPITHackathon2026/issues
+- Streamlit: https://opithackathon2026-nm9ah9mhgvncnfgretpxao.streamlit.app/
