@@ -22,9 +22,26 @@ import time
 import logging
 from typing import Dict, Optional, List
 from datetime import datetime
+from pathlib import Path
+
+# === Universal path configuration ===
+# Get the repository root directory
+current_file = Path(__file__).resolve()
+repo_root = current_file.parent.parent  # Go up from frontend/ to repo root
+
+# Add repo root to Python path (if not already there)
+repo_root_str = str(repo_root)
+if repo_root_str not in sys.path:
+    sys.path.insert(0, repo_root_str)
+
+# Also add backend directory as fallback (for compatibility)
+backend_path = str(repo_root / 'backend')
+if backend_path not in sys.path:
+    sys.path.append(backend_path)
+
 
 # Add backend to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../backend'))
+#sys.path.append(os.path.join(os.path.dirname(__file__), '../backend'))
 
 import streamlit as st
 
