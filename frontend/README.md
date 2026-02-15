@@ -4,7 +4,6 @@ A user-friendly chat interface for the Alzheimer's Assistant RAG (Retrieval-Augm
 
 ## Features
 
-- 🎭 **Demo Mode**: Test the UI immediately with mock responses (no backend setup required)
 - 🧠 **Production Mode**: Full integration with RAG backend for evidence-based responses
 - 👤 **Patient Context**: Optional patient information for personalized responses
 - 💬 **Chat History**: Maintains conversation context across queries
@@ -48,32 +47,17 @@ HF_TOKEN=your_huggingface_token_here
 LLM_MODEL=gpt-4o-mini
 TEMPERATURE=0.7
 
-# Vector Store
-VECTOR_STORE_PATH=backend/vector_store
-CHUNK_SIZE=150
-CHUNK_OVERLAP=30
+# FAISS Paths
+FAISS_INDEX_PATH=backend/data/alzheimer_faiss_deepl_hybrid.index
+FAISS_METADATA_PATH=backend/data/alzheimer_metadata_deepl_hybrid.json
 ```
 
-### 3. Initialize Vector Store (if needed)
-
-```bash
-cd backend
-python ingest.py
-```
-
-### 4. Run Streamlit App
+### 3. Run Streamlit App
 
 ```bash
 # From project root
 streamlit run frontend/streamlit_app.py
 ```
-
-### 5. Toggle Production Mode
-
-In the app sidebar:
-1. Turn **OFF** the "Demo Mode" toggle
-2. The app will automatically connect to the backend agent
-3. If the backend is unavailable, it will fall back to Demo Mode
 
 ## Usage Guide
 
@@ -102,25 +86,13 @@ All fields are optional and can be left empty.
   - Update Patient Info: Modify patient details
   - Logout: Clear patient data and return to welcome screen
 
-## Demo vs Production Mode
-
-| Feature | Demo Mode 🎭 | Production Mode ✅ |
-|---------|-------------|-------------------|
-| Backend Required | No | Yes |
-| Response Source | Mock data | RAG agent |
-| Setup Time | Instant | ~5 minutes |
-| Response Accuracy | Examples only | Evidence-based |
-| Best For | Testing UI, demos | Real usage |
-
 ## Architecture
 
 ```
 frontend/
 ├── streamlit_app.py          # Main Streamlit application
 ├── requirements_streamlit.txt # Frontend dependencies
-├── README.md                  # This file
-├── index.html                 # Static HTML (unchanged)
-└── style.css                  # Static CSS (unchanged)
+└── README.md                  # This file
 
 backend/
 ├── agent.py                   # RAG agent implementation
