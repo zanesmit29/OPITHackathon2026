@@ -422,23 +422,23 @@ def render_chat_interface() -> None:
     else:
         st.info("👋 Welcome! Ask me anything about Alzheimer's disease, caregiving strategies, symptoms, or treatment options.")
         
-        # Example questions
-        st.markdown("**Example questions:**")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("💭 What are early symptoms?"):
-                st.session_state.example_query = "What are the early symptoms of Alzheimer's disease?"
-                st.rerun()
-            if st.button("🏥 Tell me about treatments"):
-                st.session_state.example_query = "What treatments are available for Alzheimer's?"
-                st.rerun()
-        with col2:
-            if st.button("❤️ Caregiving tips"):
-                st.session_state.example_query = "What are effective caregiving strategies?"
-                st.rerun()
-            if st.button("🧠 How does it progress?"):
-                st.session_state.example_query = "How does Alzheimer's disease progress over time?"
-                st.rerun()
+        # # Example questions
+        # st.markdown("**Example questions:**")
+        # col1, col2 = st.columns(2)
+        # with col1:
+        #     if st.button("💭 What are early symptoms?"):
+        #         st.session_state.example_query = "What are the early symptoms of Alzheimer's disease?"
+        #         st.rerun()
+        #     if st.button("🏥 Tell me about treatments"):
+        #         st.session_state.example_query = "What treatments are available for Alzheimer's?"
+        #         st.rerun()
+        # with col2:
+        #     if st.button("❤️ Caregiving tips"):
+        #         st.session_state.example_query = "What are effective caregiving strategies?"
+        #         st.rerun()
+        #     if st.button("🧠 How does it progress?"):
+        #         st.session_state.example_query = "How does Alzheimer's disease progress over time?"
+        #         st.rerun()
     
     # Chat input - ALWAYS show it ONCE
     user_query = st.chat_input("Ask a question about Alzheimer's...")

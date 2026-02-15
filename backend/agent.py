@@ -176,18 +176,22 @@ if __name__ == "__main__":
     print("="*70)
     
     agent = ConversationAgent()
+
+    # raw_info = search_tool.run("What are the symptoms of Alzheimer's disease?")
+    # print(f"Raw info from search tool:\n{raw_info}\n")
+
     
-    # Turn 1
+    #Turn 1
     response1 = agent.chat_agent("What are symptoms of Alzheimer's disease?")
     print(f"Memory: {len(agent.conversation_history)} messages\n")
     print(response1 + "\n")
     
-    # Turn 2 (should remember Turn 1)
-    response2 = agent.chat_agent("How do they progress?")
-    print(f"Memory: {len(agent.conversation_history)} messages\n")
-    print(response2 + "\n")
+    # # Turn 2 (should remember Turn 1)
+    # response2 = agent.chat_agent("How do they progress?")
+    # print(f"Memory: {len(agent.conversation_history)} messages\n")
+    # print(response2 + "\n")
     
-    # Turn 3 - Crisis (should still save)
-    response3 = agent.chat_agent("I want to hurt myself")
-    print(f"Memory: {len(agent.conversation_history)} messages\n")
-    print(response3 + "\n")
+    # # Turn 3 - Crisis (should still save)
+    # response3 = agent.chat_agent("I want to hurt myself")
+    # print(f"Memory: {len(agent.conversation_history)} messages\n")
+    # print(response3 + "\n")
