@@ -1,22 +1,19 @@
 """
-Streamlit Application for Alzheimer's Assistant
+Streamlit Application for Alzheimer's Assistant - Production Version
 
-This is a RAG-powered chat application for Alzheimer's caregiving information.
+RAG-powered chat application for Alzheimer's caregiving information.
+Fully integrated with ConversationAgent backend with conversation memory.
 
-Run in Demo Mode (no backend needed):
-    pip install streamlit
-    streamlit run frontend/streamlit_app.py
+Setup:
+    1. Install requirements: pip install -r requirements.txt
+    2. Configure .env with API keys (HF_TOKEN)
+    3. Run: streamlit run frontend/streamlit_app.py
 
-Run in Production Mode (with backend):
-    1. Set up backend dependencies in backend/requirements.txt
-    2. Toggle "Demo Mode" OFF in the sidebar
-    3. Chat will use real RAG agent
-
-Expected Behavior:
-- Demo Mode: Shows mock responses with simulated delays
-- Production Mode: Integrates with backend/agent.py
-- Patient info is optional and can be skipped
-- All features work standalone without backend setup
+Features:
+- Conversation memory (multi-turn context)
+- Safety checks (crisis/dangerous topic detection)
+- RAG-powered knowledge retrieval
+- Patient context personalization
 """
 
 import sys
@@ -81,19 +78,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Mock responses for demo mode
-DEMO_RESPONSES: List[str] = [
-    "This is a demo response about Alzheimer's treatment. In real mode, this would use the RAG agent to provide evidence-based information about treatment options, including medications like cholinesterase inhibitors and memantine, as well as non-pharmacological approaches such as cognitive stimulation therapy. Always consult with healthcare professionals for personalized treatment recommendations.",
-    
-    "This is a demo response about Alzheimer's symptoms. The condition typically progresses through stages, starting with mild memory loss and confusion, advancing to difficulty with language and problem-solving, and eventually affecting basic daily activities. Early symptoms often include forgetting recent conversations or events, difficulty finding words, and challenges with complex tasks.",
-    
-    "This is a demo response about caregiving strategies. Effective caregiving involves creating a structured routine, maintaining a safe environment, using clear and simple communication, and providing activities that match the person's abilities. It's also crucial for caregivers to take care of their own physical and mental health through respite care and support groups.",
-    
-    "This is a demo response about nutrition and Alzheimer's. A balanced diet rich in fruits, vegetables, whole grains, and omega-3 fatty acids may support brain health. The Mediterranean diet has shown promise in research. Ensure adequate hydration and consider consultation with a dietitian for personalized meal planning, especially as the disease progresses.",
-    
-    "This is a demo response about behavioral management. Common behavioral changes in Alzheimer's include agitation, wandering, sundowning, and aggression. Effective strategies include identifying triggers, maintaining calm environments, redirecting attention, and establishing consistent routines. Music therapy, pet therapy, and reminiscence activities can also be beneficial."
-]
-
 
 def initialize_session_state() -> None:
     """Initialize session state variables."""
@@ -116,8 +100,6 @@ def initialize_session_state() -> None:
     if 'show_patient_form' not in st.session_state:
         st.session_state.show_patient_form = True
     
-    if 'demo_mode' not in st.session_state:
-        st.session_state.demo_mode = True
     
     if 'query_count' not in st.session_state:
         st.session_state.query_count = 0
@@ -127,7 +109,25 @@ def initialize_session_state() -> None:
     
     if 'backend_available' not in st.session_state:
         st.session_state.backend_available = None
+    
+    if 'agent' not in st.session_state:
+        st.session_state.agent = None
 
+def initialize_agent() -> bool:
+    """Initialize the conversation agent and check if it's available."""
+    if st.session_state.agent is not None:
+        return True
+    
+    try:
+        from backend.agent import ConversationAgent
+        st.session_state.agent = ConversationAgent()
+        logger.info("Backend agent initialized successfully.")
+        return True
+    
+    except Exception as e:
+        logger.error(f"Error initializing backend agent: {str(e)}")
+        st.session_state.agent = None
+        return False
 
 def check_backend_availability() -> bool:
     """Check if backend agent is available."""
@@ -136,59 +136,21 @@ def check_backend_availability() -> bool:
     
     try:
         # Try to import the agent module
-        from backend.agent import simple_groq_agent, simple_hf_agent
+        from backend.agent import ConversationAgent
         st.session_state.backend_available = True
         return True
     except Exception as e:
+        logger.error(f"Backend is not available: {str(e)}")
         st.session_state.backend_available = False
         return False
-
-
-def get_demo_response(query: str, patient_context: Optional[Dict] = None) -> str:
-    """Generate a mock response for demo mode."""
-    # Add artificial delay to simulate backend processing
-    time.sleep(1.5)
-    
-    # Select response based on query keywords
-    query_lower = query.lower()
-    
-    if any(word in query_lower for word in ['treatment', 'medication', 'therapy']):
-        response = DEMO_RESPONSES[0]
-    elif any(word in query_lower for word in ['symptom', 'sign', 'stage']):
-        response = DEMO_RESPONSES[1]
-    elif any(word in query_lower for word in ['caregiv', 'care', 'help', 'support']):
-        response = DEMO_RESPONSES[2]
-    elif any(word in query_lower for word in ['diet', 'nutrition', 'food', 'eat']):
-        response = DEMO_RESPONSES[3]
-    elif any(word in query_lower for word in ['behavior', 'agitation', 'wandering', 'aggression']):
-        response = DEMO_RESPONSES[4]
-    else:
-        # Default response
-        response = DEMO_RESPONSES[0]
-    
-    # Add patient context if available
-    if patient_context and patient_context.get('name'):
-        context_parts = []
-        if patient_context.get('name'):
-            context_parts.append(patient_context['name'])
-        if patient_context.get('gender'):
-            gender_short = "male" if "male" in patient_context['gender'].lower() else "female"
-            context_parts.append(f"a {patient_context.get('age_years', 'patient')} year old {gender_short}" if patient_context.get('age_years') else gender_short)
-        
-        if context_parts:
-            if len(context_parts) > 1:
-                response = f"For {context_parts[0]}, {context_parts[1]}, " + response.lower()
-            else:
-                response = f"For {context_parts[0]}, " + response.lower()
-    
-    return response
 
 
 def get_agent_response(query: str, patient_context: Optional[Dict] = None) -> str:
     """Get response from backend agent."""
     try:
         # Import agent functions
-        from backend.agent import simple_groq_agent, simple_hf_agent
+        if not initialize_agent():
+            raise Exception("Backend agent is not available, please check configuration.")
         
         # Augment query with patient context if available
         if patient_context and any(patient_context.values()):
@@ -215,12 +177,7 @@ def get_agent_response(query: str, patient_context: Optional[Dict] = None) -> st
         else:
             augmented_query = query
         
-        # Call the agent (try Groq first, fallback to HF)
-        try:
-            response = simple_groq_agent(augmented_query)
-        except Exception:
-            response = simple_hf_agent(augmented_query)
-        
+        response = st.session_state.agent.chat_agent(augmented_query)
         return response
     
     except Exception as e:
@@ -232,6 +189,24 @@ def get_agent_response(query: str, patient_context: Optional[Dict] = None) -> st
 def render_patient_form() -> None:
     """Render patient information form."""
     st.markdown("<h2 style='text-align: center;'>Welcome to Alzheimer's Assistant 🧠</h2>", unsafe_allow_html=True)
+    
+    # Check backend availability with loading message
+    with st.spinner("🔌 Connecting to backend..."):
+        backend_ready = check_backend_availability()
+
+    # Check backend availability
+    if not check_backend_availability():
+        st.markdown(
+            '<div class="error-banner">❌ <strong>Backend Not Available</strong><br/>Please check your backend configuration and dependencies.</div>',
+            unsafe_allow_html=True
+        )
+        st.error("**Setup Instructions:**\n1. Install backend requirements: `pip install -r backend/requirements.txt`\n2. Configure your `.env` file with API keys\n3. Restart the application")
+        return
+    
+    st.markdown(
+        '<div class="success-banner">✅ <strong>Backend Connected</strong> - Ready to chat!</div>',
+        unsafe_allow_html=True
+    )
     
     st.info("💡 Patient information is optional. You can skip directly to chat or provide details for personalized responses.")
     
@@ -313,27 +288,15 @@ def render_sidebar() -> None:
     with st.sidebar:
         st.header("Settings & Information")
         
-        # Demo Mode Toggle
-        st.markdown("### Mode Selection")
-        demo_mode = st.toggle(
-            "Demo Mode 🎭",
-            value=st.session_state.demo_mode,
-            help="Enable demo mode to test UI with mock responses (no backend required)"
-        )
-        
-        if demo_mode != st.session_state.demo_mode:
-            st.session_state.demo_mode = demo_mode
-            st.rerun()
-        
-        if st.session_state.demo_mode:
-            st.info("🎭 Demo Mode Active - Using mock data")
+        # Check backend availability
+        if check_backend_availability():
+            st.success("✅ Production Mode - Backend connected")
         else:
-            # Check backend availability
-            if check_backend_availability():
-                st.success("✅ Production Mode - Backend connected")
-            else:
-                st.warning("⚠️ Backend unavailable - Falling back to Demo Mode")
-                st.session_state.demo_mode = True
+            st.error("⚠️ Backend unavailable")
+            if st.button("🔄 Retry Connection", use_container_width=True):
+                st.session_state.backend_available = None
+                st.session_state.agent = None
+                st.rerun()
         
         st.markdown("---")
         
@@ -381,6 +344,9 @@ def render_sidebar() -> None:
         if st.button("🔄 Clear Chat", use_container_width=True):
             st.session_state.chat_history = []
             st.session_state.query_count = 0
+            if st.session_state.agent is not None:
+                st.session_state.agent.clear_history()  # Clear agent's conversation history if applicable
+            st.success("Chat history cleared!")
             st.rerun()
         
         if st.button("✏️ Update Patient Info", use_container_width=True):
@@ -401,17 +367,42 @@ def render_sidebar() -> None:
                 st.session_state.chat_history = []
                 st.session_state.query_count = 0
                 st.session_state.show_patient_form = True
+                #Reset agent state if applicable
+                st.session_state.agent = None
+                st.success("Logged out successfully!")
                 st.rerun()
+
+        with st.expander("ℹ️ Help & Tips"):
+            st.markdown("""
+            **How to use:**
+            - Ask questions about Alzheimer's disease
+            - Get caregiving advice and support
+            - Learn about symptoms and treatments
+            
+            **Features:**
+            - Conversation memory (context-aware)
+            - Safety checks (crisis detection)
+            - Evidence-based responses
+            
+            **Note:** This is not medical advice. Always consult healthcare professionals.
+            """)
 
 
 def render_chat_interface() -> None:
     """Render main chat interface."""
-    # Demo mode banner
-    if st.session_state.demo_mode:
+    # Check backend availability
+    if not check_backend_availability():
         st.markdown(
-            '<div class="demo-banner">🎭 <strong>Demo Mode</strong> - Using mock data for demonstration</div>',
+            '<div class="error-banner">❌ <strong>Backend Not Available</strong><br/>Cannot process queries without backend connection.</div>',
             unsafe_allow_html=True
         )
+        st.error("Please configure the backend and restart the application.")
+        
+        if st.button("🔄 Retry Connection"):
+            st.session_state.backend_available = None
+            st.session_state.agent = None
+            st.rerun()
+        return
     
     st.markdown("<h1 class='main-header'>Alzheimer's Assistant Chat 💬</h1>", unsafe_allow_html=True)
     
@@ -430,10 +421,34 @@ def render_chat_interface() -> None:
                 st.write(message["content"])
     else:
         st.info("👋 Welcome! Ask me anything about Alzheimer's disease, caregiving strategies, symptoms, or treatment options.")
+        
+        # Example questions
+        st.markdown("**Example questions:**")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💭 What are early symptoms?"):
+                st.session_state.example_query = "What are the early symptoms of Alzheimer's disease?"
+                st.rerun()
+            if st.button("🏥 Tell me about treatments"):
+                st.session_state.example_query = "What treatments are available for Alzheimer's?"
+                st.rerun()
+        with col2:
+            if st.button("❤️ Caregiving tips"):
+                st.session_state.example_query = "What are effective caregiving strategies?"
+                st.rerun()
+            if st.button("🧠 How does it progress?"):
+                st.session_state.example_query = "How does Alzheimer's disease progress over time?"
+                st.rerun()
     
-    # Chat input
+    # Chat input - ALWAYS show it ONCE
     user_query = st.chat_input("Ask a question about Alzheimer's...")
     
+    # Handle example query - override user_query if button was clicked
+    if hasattr(st.session_state, 'example_query'):
+        user_query = st.session_state.example_query
+        del st.session_state.example_query
+    
+    # Process query if we have one
     if user_query:
         # Add user message to chat history
         st.session_state.chat_history.append({"role": "user", "content": user_query})
@@ -445,32 +460,30 @@ def render_chat_interface() -> None:
         
         # Generate and display assistant response
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
+            with st.spinner("🤔 Thinking..."):
                 try:
-                    # Get response based on mode
-                    if st.session_state.demo_mode or not check_backend_availability():
-                        response = get_demo_response(user_query, st.session_state.patient_data)
-                    else:
-                        try:
-                            response = get_agent_response(user_query, st.session_state.patient_data)
-                        except Exception as e:
-                            # Fallback to demo mode on error
-                            st.warning("⚠️ Backend error - Using demo response")
-                            response = get_demo_response(user_query, st.session_state.patient_data)
-                    
+                    response = get_agent_response(user_query, st.session_state.patient_data)
                     st.write(response)
                     
                     # Add assistant response to chat history
                     st.session_state.chat_history.append({"role": "assistant", "content": response})
                 
                 except Exception as e:
-                    error_message = f"An error occurred: {str(e)}"
+                    error_message = f"❌ An error occurred: {str(e)}"
                     st.error(error_message)
+                    logger.error(f"Chat error: {str(e)}")
                     
-                    # Offer retry button
-                    if st.button("🔄 Retry", key="retry_button"):
-                        st.rerun()
-
+                    # Offer troubleshooting options
+                    st.markdown("**Troubleshooting:**")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("🔄 Retry Query"):
+                            st.rerun()
+                    with col2:
+                        if st.button("🔌 Check Connection"):
+                            st.session_state.backend_available = None
+                            st.session_state.agent = None
+                            st.rerun()
 
 def main() -> None:
     """Main application entry point."""

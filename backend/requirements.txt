@@ -4,6 +4,7 @@ langchain>=0.3.21
 langchain-community>=0.3.23
 langchain-core>=0.3.45
 langchain-openai>=0.1.0
+huggingface-hub>=0.20.0
 
 # Embeddings & Vector Search
 sentence-transformers>=2.2.0
@@ -26,3 +27,7 @@ numpy>=1.24.0,<2.0.0
 python-dotenv>=1.0.0
 pydantic>=2.0.0
 requests>=2.31.0
+
+# Visualization & Export
+plotly>=5.14.0
+openpyxl>=3.1.0
